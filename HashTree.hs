@@ -1,6 +1,17 @@
-module HashTree (leaf, twig, node, buildTree, treeHash, drawTree, Tree(..)) where
+module HashTree (leaf, 
+    twig, 
+    node, 
+    buildTree, 
+    treeHash, 
+    drawTree, 
+    buildProof, 
+    showMerklePath, 
+    merklePaths,
+    verifyProof, 
+    Tree(..)) where
 import Hashable32
 import Utils
+import Distribution.Parsec.Newtypes (Set')
 
 data Tree a = Leaf Hash a | Node Hash (Tree a) (Tree a) | Twig Hash (Tree a)
 
@@ -50,3 +61,59 @@ drawTreeWithDepth n (Node h l r) = replicate n ' ' ++ showHash h ++ " -\n" ++ dr
 
 -- >>> drawTree $ buildTree "fubar"
 -- "0x2e1cc0e4 -\n 0xfbfe18ac -\n  0x6600a107 -\n   0x00000066 'f'\n   0x00000075 'u'\n  0x62009aa7 -\n   0x00000062 'b'\n   0x00000061 'a'\n 0xd11bea20 +\n  0x7200b3e8 +\n   0x00000072 'r'\n"
+
+-- >>> drawTree $ buildTree "bitcoin"
+-- "0x9989519e -\n 0x69f4387c -\n  0x62009aaf -\n   0x00000062 'b'\n   0x00000069 'i'\n  0x7400b6ff -\n   0x00000074 't'\n   0x00000063 'c'\n 0x5214666a -\n  0x6f00af26 -\n   0x0000006f 'o'\n   0x00000069 'i'\n  0x6e00ad98 +\n   0x0000006e 'n'\n"
+
+type MerklePath = [Either Hash Hash]
+data MerkleProof a = MerkleProof a MerklePath
+
+getPath :: MerkleProof a -> MerklePath
+getPath (MerkleProof _ path) = path
+
+buildProof :: Hashable a => a -> Tree a -> Maybe (MerkleProof a)
+merklePaths :: Hashable a => a -> Tree a -> [MerklePath]
+
+buildProof x (Leaf h y) = if hash x == h then Just $ MerkleProof x [] else Nothing
+buildProof x (Twig _ t) = case proof of
+    Just (MerkleProof d path) -> Just $ MerkleProof d (Right (treeHash t):path)
+    Nothing -> Nothing
+    where proof = buildProof x t
+
+buildProof x (Node h l r) = case proofLeft of
+    Just (MerkleProof d path) -> Just $ MerkleProof d $ Right (treeHash r):path
+    Nothing -> case proofRight of
+        Just (MerkleProof d path) -> Just $ MerkleProof d $ Left (treeHash l):path
+        Nothing -> Nothing
+    where
+        proofLeft = buildProof x l
+        proofRight = buildProof x r
+
+merklePaths x (Leaf h y) = if hash x == h then [[]::MerklePath] else []::[MerklePath]
+merklePaths x (Twig h t) = map (Right (treeHash t):) (merklePaths x t)
+merklePaths x (Node _ l r) = map (Right (treeHash r):) (merklePaths x l) ++ map (Left (treeHash l):) (merklePaths x r)
+
+showMerklePath [] = ""
+showMerklePath (h:t) = case h of
+    Left x -> ">" ++ showHash x ++ showMerklePath t
+    Right x -> "<" ++ showHash x ++ showMerklePath t
+
+instance (Show a) => Show (MerkleProof a) where
+    show (MerkleProof a path) = "MerkleProof " ++ show a ++ " " ++ showMerklePath path
+-- >>> buildProof 'i' $ buildTree "bitcoin"
+-- Just (MerkleProof 'i' [Right 2575913374,Right 1777612924,Left 1644206767])
+
+-- >>> showMerklePath $ getPath $ fromMaybe (MerkleProof 'i' []) $ buildProof 'i' $ buildTree "bitcoin"
+-- "<0x9989519e<0x69f4387c>0x62009aaf"
+
+-- >>> buildProof 'i' $ buildTree "bitcoin"
+-- Just MerkleProof 'i' <0x9989519e<0x69f4387c>0x62009aaf
+
+foldProof :: Hashable a => MerkleProof a -> Hash
+foldProof (MerkleProof x path) = 
+    foldr (\th h -> case th of
+        Right hr -> hash (h, hr)
+        Left hl -> hash (hl, h)) (hash x) path
+
+verifyProof :: Hashable a => Hash -> MerkleProof a -> Bool
+verifyProof h p = foldProof p == h
