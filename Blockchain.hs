@@ -55,8 +55,19 @@ tx1 = Tx
 type Miner = Address
 type Nonce = Word32
 
+findNonce :: BlockHeader -> BlockHeader
+findNonce b@(BlockHeader p c r n) = if validNonce b then b else findNonce $ BlockHeader p c r $ n+1
+
 mineBlock :: Miner -> Hash -> [Transaction] -> Block
-mineBlock miner parent txs = undefined
+mineBlock miner parent txs = Block {
+  blockHdr=findNonce $ BlockHeader {
+    parent=parent,
+    coinbase=cb,
+    txroot=treeHash $ buildTree $ cb:txs,
+    nonce=0
+  },
+  blockTxs=cb:txs
+} where cb = coinbaseTx miner
 
 genesis = block0
 block0 = mineBlock (hash "Satoshi") 0 []
@@ -72,11 +83,16 @@ chain = [block2, block1, block0]
 -- Just 0x0dbea380
 
 validChain :: [Block] -> Bool
-validChain = undefined
+validChain = isJust . verifyChain
 
 verifyChain :: [Block] -> Maybe Hash
-verifyChain = undefined
+verifyChain = foldr (\block hs -> case hs of
+  Nothing -> Nothing
+  Just h -> 
+    if parent (blockHdr block) == h 
+    then Just $ hash block else Nothing) $ Just 0
 
+-- funkcja zdefiniowana w blokchain-template.hs
 verifyBlock :: Block -> Hash -> Maybe Hash
 verifyBlock b@(Block hdr txs) parentHash = do
   guard (parent hdr == parentHash)

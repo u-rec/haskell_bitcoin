@@ -8,7 +8,8 @@ module HashTree (leaf,
     showMerklePath, 
     merklePaths,
     verifyProof, 
-    Tree(..)) where
+    Tree(..), 
+    MerkleProof(..)) where
 import Hashable32
 import Utils
 import Distribution.Parsec.Newtypes (Set')

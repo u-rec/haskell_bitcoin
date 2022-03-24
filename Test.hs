@@ -1,6 +1,7 @@
 module Main where
 import HashTree
-
+import Blockchain
+import Hashable32
 main = do
     putStr $ drawTree $ buildTree "bitcoin"
     print (buildProof 'i' $ buildTree "bitcoin")
@@ -11,3 +12,5 @@ main = do
     let proof = buildProof 'i' t
     print $ verifyProof (treeHash t) <$> proof
     print $ verifyProof 0xbada55bb <$> proof
+    print $ verifyChain [block1, block2]
+    print $ VH <$> verifyChain [block2,block1,block0]
