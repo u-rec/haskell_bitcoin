@@ -2,6 +2,7 @@ module Main where
 import HashTree
 import Blockchain
 import Hashable32
+import PPrint
 main = do
     putStr $ drawTree $ buildTree "bitcoin"
     print (buildProof 'i' $ buildTree "bitcoin")
@@ -20,3 +21,5 @@ main = do
     print block
     print receipt
     print $ validateReceipt receipt (blockHdr block)
+    runShows $ pprListWith pprBlock [block0, block1, block2]
+    runShows $ pprBlock block2

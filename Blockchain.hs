@@ -6,7 +6,6 @@ import Hashable32
 import HashTree
 import PPrint
 import Utils
-import HashTree (allMerklePaths)
 
 type Address = Hash
 type Amount = Word32
