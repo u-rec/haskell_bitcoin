@@ -14,3 +14,9 @@ main = do
     print $ verifyProof 0xbada55bb <$> proof
     print $ verifyChain [block1, block2]
     print $ VH <$> verifyChain [block2,block1,block0]
+    print $ allMerklePaths $ buildTree "bitcoin"
+    let charlie = hash "Charlie"
+    let (block, [receipt]) = mineTransactions charlie (hash block1) [tx1]
+    print block
+    print receipt
+    print $ validateReceipt receipt (blockHdr block)

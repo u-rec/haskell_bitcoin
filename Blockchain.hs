@@ -6,6 +6,7 @@ import Hashable32
 import HashTree
 import PPrint
 import Utils
+import HashTree (allMerklePaths)
 
 type Address = Hash
 type Amount = Word32
@@ -66,7 +67,7 @@ mineBlock miner parent txs = Block {
     txroot=treeHash $ buildTree $ cb:txs,
     nonce=0
   },
-  blockTxs=cb:txs
+  blockTxs=txs
 } where cb = coinbaseTx miner
 
 genesis = block0
@@ -139,7 +140,24 @@ validateReceipt r hdr = txrBlock r == hash hdr
                         && verifyProof (txroot hdr) (txrProof r)
 
 mineTransactions :: Miner -> Hash -> [Transaction] -> (Block, [TransactionReceipt])
-mineTransactions miner parent txs = undefined
+mineTransactions miner parent txs = (block, 
+  map (\mproof ->
+    TxReceipt {
+      txrBlock=hash block,
+      txrProof=mproof
+    }) $ tail $ allMerklePaths tree)
+  where block = Block {
+          blockHdr=findNonce $ BlockHeader {
+            parent=parent,
+            coinbase=cb,
+            txroot=treeHash tree,
+            nonce=0
+          },
+          blockTxs=txs
+        } 
+        cb = coinbaseTx miner
+        tree = buildTree $ cb:txs
+
 
 {- | Pretty printing
 >>> runShows $ pprBlock block2

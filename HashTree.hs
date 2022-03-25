@@ -1,14 +1,15 @@
-module HashTree (leaf, 
-    twig, 
-    node, 
-    buildTree, 
-    treeHash, 
-    drawTree, 
-    buildProof, 
-    showMerklePath, 
+module HashTree (leaf,
+    twig,
+    node,
+    buildTree,
+    treeHash,
+    drawTree,
+    buildProof,
+    showMerklePath,
     merklePaths,
-    verifyProof, 
-    Tree(..), 
+    allMerklePaths,
+    verifyProof,
+    Tree(..),
     MerkleProof(..)) where
 import Hashable32
 import Utils
@@ -90,9 +91,15 @@ buildProof x (Node h l r) = case proofLeft of
         proofLeft = buildProof x l
         proofRight = buildProof x r
 
-merklePaths x (Leaf h y) = if hash x == h then [[]::MerklePath] else []::[MerklePath]
-merklePaths x (Twig h t) = map (Right (treeHash t):) (merklePaths x t)
+merklePaths x (Leaf h _) = if hash x == h then [[]::MerklePath] else []::[MerklePath]
+merklePaths x (Twig _ t) = map (Right (treeHash t):) (merklePaths x t)
 merklePaths x (Node _ l r) = map (Right (treeHash r):) (merklePaths x l) ++ map (Left (treeHash l):) (merklePaths x r)
+
+allMerklePaths :: (Hashable a) => Tree a -> [MerkleProof a]
+allMerklePaths (Leaf _ y) = [MerkleProof y []]
+allMerklePaths (Twig _ t) = map (\(MerkleProof x pt) -> MerkleProof x $ Right (treeHash t):pt) (allMerklePaths t)
+allMerklePaths (Node _ l r) = map (\(MerkleProof x pt) -> MerkleProof x $ Right (treeHash r):pt) (allMerklePaths l) ++
+    map (\(MerkleProof x pt) -> MerkleProof x $ Left (treeHash l):pt) (allMerklePaths r)
 
 showMerklePath [] = ""
 showMerklePath (h:t) = case h of
@@ -111,7 +118,7 @@ instance (Show a) => Show (MerkleProof a) where
 -- Just MerkleProof 'i' <0x9989519e<0x69f4387c>0x62009aaf
 
 foldProof :: Hashable a => MerkleProof a -> Hash
-foldProof (MerkleProof x path) = 
+foldProof (MerkleProof x path) =
     foldr (\th h -> case th of
         Right hr -> hash (h, hr)
         Left hl -> hash (hl, h)) (hash x) path
